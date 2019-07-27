@@ -6,17 +6,30 @@ city_groups = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Selah', 'Naches'
 chill_homes = []
 
 
+class PropertyList(object):
+    def __init__(self, start, end, use):
+        self.list = []
+        self.start = start
+        self.end = end
+        self.use = use
+
+    def populate_list(self):
+        start_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetBasicSales/U?salesType=use&saleDateFrom="
+        mid_url = self.start + "&saleDateTo=" + self.end + "&useStr=" + self.use
+        end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
+        property_url = start_url + mid_url + end_url
+        r = requests.get(property_url).json()['IndividualResults']
+        for home in r:
+            self.list.append(home)
+
+
 class Property(object):
     def __init__(self, parcel_number):
         self.parcel_number = parcel_number
         base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelString/"
         parcel_details_url = base_parcel_url + self.parcel_number
-        p = requests.get(parcel_details_url)
-        t = p.json()
-        u = t[0]
+        u = requests.get(parcel_details_url).json()[0]
         self.address = u['SitusAddress']
-        #cities = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Selah', 'Naches', 'Granger', 'Grandview',
-                       #'Mabton', 'Toppenish', 'Zillah', 'Wapato', 'Moxee']
         c = self.address.split(',')[-1].strip()
         try:
             city_groups.index(str(c))
@@ -24,9 +37,15 @@ class Property(object):
             c = 'Unincorporated'
         self.city = c
         self.buyer = u['OwnerName']
+        self.excise_id = u["ExciseID"]
+        self.excise_date = u["ExciseDate"]
+        self.price = u["SalePrice"]
+        seller_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
+        seller_data = requests.get(seller_url + str(self.excise_id))
+        self.seller = seller_data.json()["GrantorName"]
 
 
-def get_property_base(start, end, use):
+"""def get_property_base(start, end, use):
     start_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetBasicSales/U?salesType=use&saleDateFrom="
     mid_url = start + "&saleDateTo=" + end + "&useStr=" + use
     end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
@@ -49,16 +68,21 @@ def build_home(home, use_code):
     a.seller = seller
     #attrs = vars(a)
     #print(', '.join("%s: %s" % item for item in attrs.items()))
-    chill_homes.append(a)
+    chill_homes.append(a)"""
 
 
-get_property_base("06/01/2019", "06/30/2019", "11")
+#get_property_base("06/01/2019", "06/30/2019", "11")
 
-outtext = open('prop_transfer.txt', 'w')
-outcsv = open('property_transfers.csv', 'w', newline='')
+if __name__ == "__main__":
+    #outtext = open('prop_transfer.txt', 'w')
+    #outcsv = open('property_transfers.csv', 'w', newline='')
+    june_transfers = PropertyList(start="06/01/2019", end="06/30/2019", use="11")
+    june_transfers.populate_list()
+    print(june_transfers.list)
 
 
-transferwriter = csv.writer(outcsv)
+
+"""transferwriter = csv.writer(outcsv)
 for group in city_groups:
     print(group)
     outtext.write(group + '\n')
@@ -75,7 +99,7 @@ for group in city_groups:
             #print(transaction_string)
     #print('\n')
 
-outcsv.close()
+outcsv.close()"""
 
 
 
