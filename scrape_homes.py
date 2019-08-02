@@ -7,7 +7,7 @@ res_properties_transferred = []
 com_properties_transferred = []
 
 
-class ResPropertyList(object):
+class PropertyList(object):
     def __init__(self, start, end, use):
         self.list = []
         self.start = start
@@ -16,21 +16,34 @@ class ResPropertyList(object):
 
     def populate_list(self):
         base_assesors_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/"
-        res_url = "GetBasicSales/U?salesType=use&saleDateFrom="
-        com_url = "GetCommercialSales/?salesType=comm&saleDateFrom="
+        type_url_fragment = {"residential": "GetBasicSales/U?salesType=use&saleDateFrom=", "commercial": "GetCommercialSales/?salesType=comm&saleDateFrom="}
+        if self.use == '11': #11 is assesor's code for SF residential
+            type_url = type_url_fragment["residential"]
+            use_url = "&useStr=" + self.use
+        else:
+            type_url = type_url_fragment["commercial"]
+            use_url = None
         mid_url = self.start + "&saleDateTo=" + self.end
-        use_url = "&useStr=" + self.use
-        end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
-        property_url = start_url + mid_url + end_url
+        property_url = base_assesors_url + type_url + mid_url
+        if use_url: property_url += use_url
+        property_url += "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
+        r = requests.get(property_url).json()['IndividualResults']
+        for property_listing in r:
+            self.list.append(property_listing)
 
-        start_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetBasicSales/U?salesType=use&saleDateFrom="
+
+        """start_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetBasicSales/U?salesType=use&saleDateFrom="
         mid_url = self.start + "&saleDateTo=" + self.end + "&useStr=" + self.use
         end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
         property_url = start_url + mid_url + end_url
         r = requests.get(property_url).json()['IndividualResults']
         for home in r:
-            self.list.append(home)
+            self.list.append(home)"""
 
+
+        # res_url = "GetBasicSales/U?salesType=use&saleDateFrom="
+        # com_url = "GetCommercialSales/?salesType=comm&saleDateFrom="
+        #use_url = "&useStr=" + self.use
 
 class ResProperty(object):
     def __init__(self, **kwargs):
@@ -64,7 +77,7 @@ class ResProperty(object):
         return "{0}; ${1:,}; {2}; {3}; {4}".format(self.address, self.SalePrice, self.Buyer, self.Seller, self.ExciseDate)
 
 
-class ComPropertyList(object):
+"""class ComPropertyList(object):
     def __init__(self, start, end):
         self.list = []
         self.start = start
@@ -105,7 +118,7 @@ class ComProperty(object):
 
 
 
-"""def get_property_base(start, end, use):
+    def get_property_base(start, end, use):
     start_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetBasicSales/U?salesType=use&saleDateFrom="
     mid_url = start + "&saleDateTo=" + end + "&useStr=" + use
     end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
@@ -130,8 +143,6 @@ def build_home(home, use_code):
     #print(', '.join("%s: %s" % item for item in attrs.items()))
     chill_homes.append(a)"""
 
-
-#get_property_base("06/01/2019", "06/30/2019", "11")
 
 if __name__ == "__main__":
     outfile = open('outfile.txt', 'w')
