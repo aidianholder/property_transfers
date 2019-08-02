@@ -1,8 +1,11 @@
 import requests
+from datetime import datetime
+
 
 city_groups = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Selah', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Zillah', 'Wapato', 'Moxee']
 res_properties_transferred = []
 com_properties_transferred = []
+
 
 class ResPropertyList(object):
     def __init__(self, start, end, use):
@@ -12,6 +15,14 @@ class ResPropertyList(object):
         self.use = use
 
     def populate_list(self):
+        base_assesors_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/"
+        res_url = "GetBasicSales/U?salesType=use&saleDateFrom="
+        com_url = "GetCommercialSales/?salesType=comm&saleDateFrom="
+        mid_url = self.start + "&saleDateTo=" + self.end
+        use_url = "&useStr=" + self.use
+        end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
+        property_url = start_url + mid_url + end_url
+
         start_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetBasicSales/U?salesType=use&saleDateFrom="
         mid_url = self.start + "&saleDateTo=" + self.end + "&useStr=" + self.use
         end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
@@ -25,23 +36,32 @@ class ResProperty(object):
     def __init__(self, **kwargs):
         for k in kwargs:
             setattr(self, k, kwargs[k])
+        p_data = self.parcel_lookup
+        self.Address = p_data['Address']
+        self.Buyer = p_data['Owner']
+        self.City = p_data['City']
+        self.Seller = self.excise_lookup()
+
+    def parcel_lookup(self):
         base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelString/"
         parcel_details_url = base_parcel_url + self.ParcelNumber
-        u = requests.get(parcel_details_url).json()[0]
-        self.address = u['SitusAddress']
-        c = self.address.split(',')[-1].strip()
-        try:
-            city_groups.index(str(c))
-        except ValueError:
-            c = 'Unincorporated'
-        self.city = c
-        self.buyer = u['OwnerName']
-        seller_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
-        seller_data = requests.get(seller_url + str(self.ExciseID))
-        self.seller = seller_data.json()["GrantorName"]
+        parcel_data = requests.get(parcel_details_url).json()[0]
+        property_address = parcel_data['SitusAddress']
+        buyer = parcel_data['OwnerName']
+        ####pain point, not abstractable w/out too much work####
+        city_name = property_address.split()[-1].strip()
+        comma_index = city_name.find(',')
+        if comma_index != -1:
+            city_name = city_name[comma_index:]
+        return {'Address': property_address, 'Owner': buyer, 'City': city_name}
+
+    def excise_lookup(self):
+        excise_url_base = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
+        excise_data = requests.get(excise_url_base + str(self.ExciseID))
+        return excise_data.json()["GrantorName"]
 
     def __str__(self):
-        return "{0}; ${1:,}; {2}; {3}; {4}".format(self.address, self.SalePrice, self.buyer, self.seller, self.ExciseDate)
+        return "{0}; ${1:,}; {2}; {3}; {4}".format(self.address, self.SalePrice, self.Buyer, self.Seller, self.ExciseDate)
 
 
 class ComPropertyList(object):
@@ -167,13 +187,20 @@ for group in city_groups:
 outcsv.close()"""
 
 
-
-
-
-
-
-
-
+"""base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelString/"
+        parcel_details_url = base_parcel_url + self.ParcelNumber
+        u = requests.get(parcel_details_url).json()[0]
+        self.address = u['SitusAddress']
+        c = self.address.split(',')[-1].strip()
+        try:
+            city_groups.index(str(c))
+        except ValueError:
+            c = 'Unincorporated'
+        self.city = c
+        self.buyer = u['OwnerName']
+        seller_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
+        seller_data = requests.get(seller_url + str(self.ExciseID))
+        self.seller = seller_data.json()["GrantorName"]"""
 
 
 
