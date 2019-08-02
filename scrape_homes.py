@@ -1,12 +1,10 @@
 import requests
-import csv
-
 
 city_groups = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Selah', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Zillah', 'Wapato', 'Moxee']
-properties_transferred = []
+res_properties_transferred = []
+com_properties_transferred = []
 
-
-class PropertyList(object):
+class ResPropertyList(object):
     def __init__(self, start, end, use):
         self.list = []
         self.start = start
@@ -24,31 +22,6 @@ class PropertyList(object):
 
 
 class ResProperty(object):
-    def __init__(self, parcel_number, exciseid, excisedate, saleprice):
-        self.parcel_number = parcel_number
-        self.excise_id = exciseid
-        self.excise_date = excisedate
-        self.price = saleprice
-        base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelString/"
-        parcel_details_url = base_parcel_url + self.parcel_number
-        u = requests.get(parcel_details_url).json()[0]
-        self.address = u['SitusAddress']
-        c = self.address.split(',')[-1].strip()
-        try:
-            city_groups.index(str(c))
-        except ValueError:
-            c = 'Unincorporated'
-        self.city = c
-        self.buyer = u['OwnerName']
-        seller_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
-        seller_data = requests.get(seller_url + str(self.excise_id))
-        self.seller = seller_data.json()["GrantorName"]
-
-    def __str__(self):
-        return "{0}; {1:,}; {2}; {3}".format(self.address, self.price, self.buyer, self.seller)
-
-
-class ComProperty(object):
     def __init__(self, **kwargs):
         for k in kwargs:
             setattr(self, k, kwargs[k])
@@ -61,6 +34,45 @@ class ComProperty(object):
             city_groups.index(str(c))
         except ValueError:
             c = 'Unincorporated'
+        self.city = c
+        self.buyer = u['OwnerName']
+        seller_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
+        seller_data = requests.get(seller_url + str(self.ExciseID))
+        self.seller = seller_data.json()["GrantorName"]
+
+    def __str__(self):
+        return "{0}; ${1:,}; {2}; {3}; {4}".format(self.address, self.SalePrice, self.buyer, self.seller, self.ExciseDate)
+
+
+class ComPropertyList(object):
+    def __init__(self, start, end):
+        self.list = []
+        self.start = start
+        self.end = end
+
+    def populate_list(self):
+        base_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetCommercialSales/?salesType=comm&saleDateFrom="
+        dates_url = self.start + "&saleDateTo=" + self.end
+        end_url = "&parcelRadio=parcel&situsRadio=parcel&exciseRadio=parcel"
+        property_url = base_url + dates_url + end_url
+        r = requests.get(property_url).json()['IndividualResults']
+        for commercial_prop in r:
+            self.list.append(commercial_prop)
+
+
+class ComProperty(object):
+    def __init__(self, **kwargs):
+        for k in kwargs:
+            setattr(self, k, kwargs[k])
+        base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelString/"
+        parcel_details_url = base_parcel_url + self.ParcelNumber
+        u = requests.get(parcel_details_url).json()[0]
+        self.address = u['SitusAddress']
+        c = self.address.split(' ')[-1].strip()
+        try:
+            city_groups.index(str(c))
+        except ValueError:
+            c = 'Unincorporated'
         self.City = c
         self.Buyer = u['OwnerName']
         seller_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
@@ -68,7 +80,7 @@ class ComProperty(object):
         self.Seller = seller_data.json()["GrantorName"]
 
     def __str__(self):
-        return "{0}; {1:,}; {2}; {3}".format(self.address, self.price, self.buyer, self.seller)
+        return "{0}; {1}; ${2:,}; {3}; {4}; {5}".format(self.address, self.StructureType, self.SalePrice, self.Buyer, self.Seller, self.ExciseDate)
 
 
 
@@ -102,19 +114,36 @@ def build_home(home, use_code):
 #get_property_base("06/01/2019", "06/30/2019", "11")
 
 if __name__ == "__main__":
-
-
-
-"""    transfers = PropertyList(start="06/01/2019", end="06/05/2019", use="11")
+    outfile = open('outfile.txt', 'w')
+    res_transfers = ResPropertyList(start="06/01/2019", end="06/07/2019", use="11")
+    outfile.write("RESIDENTIAL PROPERTY")
+    outfile.write("\n")
+    res_transfers.populate_list()
+    for home in res_transfers.list:
+        p = ResProperty(**home)
+        res_properties_transferred.append(p)
+    for town in city_groups:
+        for q in res_properties_transferred:
+            if q.city == town:
+                print(q)
+                outfile.write(q.__str__())
+                outfile.write("\n")
+    outfile.write("\n")
+    outfile.write("COMMERCIAL PROPERTY")
+    outfile.write("\n")
+    transfers = ComPropertyList(start="06/01/2019", end="06/07/2019")
     transfers.populate_list()
     for parcel in transfers.list:
-        p = Property(parcel['ParcelNumber'], parcel['ExciseID'], parcel['ExciseDate'], parcel['SalePrice'])
-        properties_transferred.append(p)
+        p = ComProperty(**parcel)
+        com_properties_transferred.append(p)
     for town in city_groups:
-        print(town)
-        for q in properties_transferred:
-            if q.city == town:
-                print(q)"""
+        for v in com_properties_transferred:
+            if v.City == town:
+                print(v)
+                outfile.write(v.__str__())
+                outfile.write("\n")
+    outfile.close()
+
 
 
 
