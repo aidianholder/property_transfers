@@ -82,7 +82,10 @@ class PropertyTransfer(object):
         base = "{0}; ${1:,}; {2}; {3}; {4}".format(self.Address, self.SalePrice, self.Buyer, self.Seller, self.ExciseDateString)
         if self.StructureType != -1:
             full = ', '.join([base, self.StructureType])
-        return full
+            return full
+        else:
+            return base
+
 
 
 def run_residential(start, end):
