@@ -64,31 +64,14 @@ class PropertyTransfer(object):
         property_address = parcel_data['SitusAddress']
         buyer = parcel_data['OwnerName']
         # pain point, not abstract-able w/out too much work####
-        # residential property usually has comma between address and city###
-        # commercial property has simple space between street address and city###
-        comma_index = property_address.find(', ')
-        if comma_index != -1:
-            city_name = property_address.split(', ')[-1].strip()
-        else:
-            city_name = property_address.split()[-1].strip()
+        city_name = property_address.split()[-1].strip()
         if city_name == "Gap":
             city_name = "Union Gap"
         elif city_name == "Swan":
             city_name = "White Swan"
         if city_name not in city_name_lookup:
             city_name = 'Unincorporated'
-        return {'Address': property_address, 'Owner': buyer, 'City': city_name}
-
-        # city_name = property_address.split(', ')
-
-        # city_name = property_address.split()[-1].strip()
-
-        # comma_index: object = city_name.find(', ')
-        # if comma_index != -1:
-        #    city_name = city_name[comma_index:]
-        # if city_name not in city_name_lookup:
-        #    city_name = 'Unincorporated'
-        # return {'Address': property_address, 'Owner': buyer, 'City': city_name}
+        return dict(Address=property_address, Owner=buyer, City=city_name)
 
     def excise_lookup(self):
         excise_url_base = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
@@ -124,37 +107,28 @@ def run_residential(start, end):
     for town in city_groups.keys():
         outfile.write(town)
         outfile.write('\n')
+        city_groups[town].sort(key=lambda x: x.ExciseDate)
         for q in city_groups[town]:
             print(q)
             outfile.write(q.__str__())
             outfile.write('\n')
         outfile.write('\n')
-
-
-        #properties_transferred.append(p)
-    #for town in city_groups:
-    #    for q in properties_transferred:
-    #        if q.City == town:
-     #           print(q)
-      #          outfile.write(q.__str__())
-       #         outfile.write('\n')
-        #outfile.write("\n")
+    outfile.close()
 
 
 def run_commercial(start, end):
-    outfile = open("commercial.txt", 'w')
+    outfile = open('commercial.txt', 'w')
     com_transfers = PropertyList(start=start, end=end, use=None)
     com_transfers.populate_list()
     com_properties_transferred = []
     for parcel in com_transfers.list:
         p = PropertyTransfer(**parcel)
         com_properties_transferred.append(p)
-    for town in city_groups:
-        for v in com_properties_transferred:
-            if v.City == town:
-                print(v)
-                outfile.write(v.__str__())
-                outfile.write("\n")
+    com_properties_transferred.sort(key=lambda x: x.ExciseDate)
+    for v in com_properties_transferred:
+        print(v)
+        outfile.write(v.__str__())
+        outfile.write("\n")
     outfile.close()
 
 if __name__ == "__main__":
