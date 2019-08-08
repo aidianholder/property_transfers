@@ -2,13 +2,13 @@ from typing import Dict, Any, Callable
 
 import requests
 import dateutil.parser
-from requests.adapters import HTTPAdapter
-import requests.packages.urllib3.util.retry as Retry
 import argparse
 import datetime
+import sqlite3
 
 
 city_name_lookup = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Harrah', 'Selah', 'Sunnyside', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Tieton', 'Zillah', 'Wapato', 'Moxee']
+
 
 
 class PropertyList(object):
@@ -92,6 +92,12 @@ class PropertyTransfer(object):
             return base
 
 
+"""transfers_reported = []
+def record_transfer(record_date, record_parcel):
+    if record_date not in transfers_reported:
+        transfers_reported.append(record_date = [])"""
+
+
 def run_residential(start, end):
     city_groups = {}
     outfile = open('residential.txt', 'w')
@@ -137,5 +143,5 @@ if __name__ == "__main__":
     #parser.add_argument("end")
     #args = parser.parse_args()
     #run_residential(, args.end)
-    run_residential('07/02/2019', '07/04/2019')
-    #run_commercial('07/01/2019', '07/15/2019')
+    run_residential('07/01/2019', '07/08/2019')
+    run_commercial('07/01/2019', '07/08/2019')
