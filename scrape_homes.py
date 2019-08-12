@@ -4,11 +4,10 @@ import requests
 import dateutil.parser
 import argparse
 import datetime
-import sqlite3
+import json
 
 
 city_name_lookup = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Harrah', 'Selah', 'Sunnyside', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Tieton', 'Zillah', 'Wapato', 'Moxee']
-
 
 
 class PropertyList(object):
@@ -92,24 +91,62 @@ class PropertyTransfer(object):
             return base
 
 
-"""transfers_reported = []
-def record_transfer(record_date, record_parcel):
-    if record_date not in transfers_reported:
-        transfers_reported.append(record_date = [])"""
+class OldTransfers(object):
+    def __init__(self, file_storage):
+        if file_storage is None:
+            self.transfers = {}
+        else:
+            try:
+                self.transfers = json.load(open(file_storage, "r"))
+            except FileNotFoundError:
+                self.transfers = {}
+
+    def record_transfer(self, record_date, record_parcel, record_address):
+        if record_date not in self.transfers.keys():
+            self.transfers[record_date] = [record_parcel]
+        elif record_parcel not in self.transfers[record_date]:
+            self.transfers[record_date].append(record_parcel)
+        else:
+            report_string = " ".join([record_address, 'already transferred on', record_date])
+            print(report_string)
+
+    def purge_oldest(self):
+        old_dates = []
+        threshold = datetime.date.today() - datetime.timedelta(days=90)
+        for k in self.transfers.keys():
+            kd = datetime.datetime.strptime(k, "%Y%m%d")
+            if kd < threshold:
+                old_dates.append(k)
+        for d in old_dates:
+            del self.transfers[d]
+
+    def write_storage(self):
+        output_file_name = "".join(["transfers_recorded", datetime.date.today().strftime("%Y%m%d"), ".json"])
+        output = json.dumps(self.transfers, sort_keys=True, indent=4)
+        outfile = open(output_file_name, "w")
+        outfile.write(output)
+        outfile.close()
+
+    def __str__(self):
+        json.dumps(self.transfers, sort_keys=True, indent=4)
 
 
-def run_residential(start, end):
+def run_residential(start, end, old):
     city_groups = {}
     outfile = open('residential.txt', 'w')
     res_transfers = PropertyList(start=start, end=end, use="11")
     res_transfers.populate_list()
+    pr = OldTransfers(old)
     for home in res_transfers.list:
         p = PropertyTransfer(**home)
+        pr.record_transfer(p.ExciseDate.strftime("%Y%m%d"), p.ParcelNumber, p.Address)
         if p.City in city_groups.keys():
             city_groups[p.City].append(p)
         else:
             city_groups[p.City] = []
             city_groups[p.City].append(p)
+    pr.purge_oldest()
+    pr.write_storage()
     for town in city_groups.keys():
         outfile.write(town)
         outfile.write('\n')
@@ -122,14 +159,18 @@ def run_residential(start, end):
     outfile.close()
 
 
-def run_commercial(start, end):
+def run_commercial(start, end, old):
     outfile = open('commercial.txt', 'w')
     com_transfers = PropertyList(start=start, end=end, use=None)
     com_transfers.populate_list()
     com_properties_transferred = []
+    pr = OldTransfers(old)
     for parcel in com_transfers.list:
         p = PropertyTransfer(**parcel)
+        pr.record_transfer(p.ExciseDate.strftime("%Y%m%d"), p.ParcelNumber, p.Address)
         com_properties_transferred.append(p)
+    pr.purge_oldest()
+    pr.write_storage()
     com_properties_transferred.sort(key=lambda x: x.ExciseDate)
     for v in com_properties_transferred:
         print(v)
@@ -137,11 +178,13 @@ def run_commercial(start, end):
         outfile.write("\n")
     outfile.close()
 
+
 if __name__ == "__main__":
-    #parser = argparse.ArgumentParser()
-    #parser.add_argument("start")
-    #parser.add_argument("end")
-    #args = parser.parse_args()
-    #run_residential(, args.end)
-    run_residential('07/01/2019', '07/08/2019')
-    run_commercial('07/01/2019', '07/08/2019')
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("start")
+    # parser.add_argument("end")
+    # parser.add_argument("old")
+    # args = parser.parse_args()
+    # run_residential(, args.end)
+    run_residential('07/01/2019', '07/08/2019', None)
+    # run_commercial('07/01/2019', '07/08/2019')
