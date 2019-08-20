@@ -7,7 +7,7 @@ import datetime
 import json
 
 
-city_name_lookup = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Harrah', 'Selah', 'Sunnyside', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Tieton', 'Zillah', 'Wapato', 'Moxee']
+# city_name_lookup = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Harrah', 'Selah', 'Sunnyside', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Tieton', 'Zillah', 'Wapato', 'Moxee']
 
 
 class PropertyList(object):
@@ -57,20 +57,24 @@ class PropertyTransfer(object):
 
     @property
     def parcel_lookup(self):
-        base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelString/"
+        base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelNumber/"
         parcel_details_url = base_parcel_url + self.ParcelNumber
-        parcel_data = requests.get(parcel_details_url, timeout=10).json()[0]
-        property_address = parcel_data['SitusAddress']
-        buyer = parcel_data['OwnerName']
-        # pain point, not abstract-able w/out too much work####
-        city_name = property_address.split()[-1].strip()
-        if city_name == "Gap":
-            city_name = "Union Gap"
-        elif city_name == "Swan":
-            city_name = "White Swan"
-        if city_name not in city_name_lookup:
+        parcel_data = requests.get(parcel_details_url, timeout=10).json()
+        address_data = parcel_data['SitusAddresses'][0]
+        property_address = address_data['AddressString']
+        city_name = address_data['City']
+        if city_name is None or city_name == "":
             city_name = 'Unincorporated'
-        return dict(Address=property_address, Owner=buyer, City=city_name)
+        zip_c = address_data['ZipCode']
+        buyers = parcel_data['OwnerRecords']
+        if len(buyers) > 1:
+            group = []
+            for grantee in buyers:
+                group.append(grantee['Name'])
+            new_owner = ", ".join(group)
+        else:
+            new_owner = buyers[0]['Name']
+        return dict(Address=property_address, Owner=new_owner, City=city_name, ZipCode=zip_c)
 
     def excise_lookup(self):
         excise_url_base = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
@@ -114,14 +118,14 @@ class OldTransfers(object):
         old_dates = []
         threshold = datetime.date.today() - datetime.timedelta(days=90)
         for k in self.transfers.keys():
-            kd = datetime.datetime.strptime(k, "%Y%m%d")
+            kd = datetime.datetime.strptime(k, "%Y%m%d").date()
             if kd < threshold:
                 old_dates.append(k)
         for d in old_dates:
             del self.transfers[d]
 
-    def write_storage(self):
-        output_file_name = "".join(["transfers_recorded", datetime.date.today().strftime("%Y%m%d"), ".json"])
+    def write_storage(self, property_type):
+        output_file_name = "".join([property_type, datetime.date.today().strftime("%Y%m%d"), ".json"])
         output = json.dumps(self.transfers, sort_keys=True, indent=4)
         outfile = open(output_file_name, "w")
         outfile.write(output)
@@ -146,7 +150,7 @@ def run_residential(start, end, old):
             city_groups[p.City] = []
             city_groups[p.City].append(p)
     pr.purge_oldest()
-    pr.write_storage()
+    pr.write_storage("residential")
     for town in city_groups.keys():
         outfile.write(town)
         outfile.write('\n')
@@ -170,7 +174,7 @@ def run_commercial(start, end, old):
         pr.record_transfer(p.ExciseDate.strftime("%Y%m%d"), p.ParcelNumber, p.Address)
         com_properties_transferred.append(p)
     pr.purge_oldest()
-    pr.write_storage()
+    pr.write_storage("commercial")
     com_properties_transferred.sort(key=lambda x: x.ExciseDate)
     for v in com_properties_transferred:
         print(v)
@@ -186,5 +190,5 @@ if __name__ == "__main__":
     # parser.add_argument("old")
     # args = parser.parse_args()
     # run_residential(, args.end)
-    run_residential('07/01/2019', '07/08/2019', None)
-    # run_commercial('07/01/2019', '07/08/2019')
+    run_residential('07/01/2019', '07/15/2019', None)
+    run_commercial('07/01/2019', '07/15/2019', None)
