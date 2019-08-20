@@ -7,9 +7,6 @@ import datetime
 import json
 
 
-# city_name_lookup = ['Yakima', 'Union Gap', 'Cowiche', 'White Swan', 'Harrah', 'Selah', 'Sunnyside', 'Naches', 'Granger', 'Grandview', 'Mabton', 'Toppenish', 'Tieton', 'Zillah', 'Wapato', 'Moxee']
-
-
 class PropertyList(object):
     def __init__(self, start, end, use):
         self.list = []
@@ -19,10 +16,13 @@ class PropertyList(object):
 
     def populate_list(self):
         base_assessors_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/"
-        type_url_fragment = {"residential": "GetBasicSales/U?salesType=use&saleDateFrom=", "commercial": "GetCommercialSales/?salesType=comm&saleDateFrom="}
+        type_url_fragment = {
+            "residential": "GetBasicSales/U?salesType=use&saleDateFrom=",
+            "commercial": "GetCommercialSales/?salesType=comm&saleDateFrom="
+        }
         # 11 is assessor's code for SF residential###
         if self.use == '11':
-            type_url = type_url_fragment["residential"]
+            type_url: str = type_url_fragment["residential"]
             use_url = "&useStr=" + self.use
         else:
             type_url = type_url_fragment["commercial"]
@@ -58,23 +58,22 @@ class PropertyTransfer(object):
     @property
     def parcel_lookup(self):
         base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelNumber/"
-        parcel_details_url = base_parcel_url + self.ParcelNumber
+        parcel_num_string = self.ParcelNumber[:6] + self.ParcelNumber[7:]
+        parcel_details_url = base_parcel_url + parcel_num_string
         parcel_data = requests.get(parcel_details_url, timeout=10).json()
-        address_data = parcel_data['SitusAddresses'][0]
-        property_address = address_data['AddressString']
-        city_name = address_data['City']
-        if city_name is None or city_name == "":
-            city_name = 'Unincorporated'
-        zip_c = address_data['ZipCode']
-        buyers = parcel_data['OwnerRecords']
-        if len(buyers) > 1:
-            group = []
-            for grantee in buyers:
-                group.append(grantee['Name'])
-            new_owner = ", ".join(group)
+        property_address = parcel_data['SitusAddresses'][0]
+        address = property_address['AddressString']
+        city = property_address['City']
+        zip_c = property_address['ZipCode']
+        grantees = parcel_data['OwnerRecords']
+        buyer = []
+        for grantee in grantees:
+            buyer.append(grantee['Name'])
+        if len(buyer) > 1:
+            buyer_names = ", ".join(buyer)
         else:
-            new_owner = buyers[0]['Name']
-        return dict(Address=property_address, Owner=new_owner, City=city_name, ZipCode=zip_c)
+            buyer_names = buyer[0]
+        return dict(Address=address, City=city, ZipCode=zip_c, Owner=buyer_names)
 
     def excise_lookup(self):
         excise_url_base = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
@@ -117,6 +116,7 @@ class OldTransfers(object):
     def purge_oldest(self):
         old_dates = []
         threshold = datetime.date.today() - datetime.timedelta(days=90)
+        # can't delete wile looping through dict, so using this instead ###
         for k in self.transfers.keys():
             kd = datetime.datetime.strptime(k, "%Y%m%d").date()
             if kd < threshold:
