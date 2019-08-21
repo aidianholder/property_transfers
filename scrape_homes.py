@@ -145,14 +145,32 @@ class PropertyTransfer(object):
             full = ', '.join([base, self.StructureType])
             return full
 
-    """def build_output(self):
+    def collect_output(self):
+        output = []
         conn = sqlite3.connect("transfers.db")
         cur = conn.cursor()
         cur.execute("SELECT * FROM latest")
         tid = cur.fetchall()
         for transaction in tid:
             for row in cur.execute("SELECT * FROM transfers WHERE transaction_id=?", transaction):
-"""
+                output.append(row)
+        # return output
+        build_print(output)
+        build_web(output)
+
+    def build_print(self, properties):
+        city_groups = {}
+        outfile = open('residential.txt', 'w')
+        for p in properties:
+            city = p[3]
+            if city == "":
+                city = 'Unincorporated'
+            if city in city_groups.keys():
+                city_groups[city].append(p)
+            else:
+                city_groups[city] = []
+                city_groups[city].append(p)
+
 
 
 class OldTransfers(object):
