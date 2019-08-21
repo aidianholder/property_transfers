@@ -6,6 +6,7 @@ import argparse
 import datetime
 import json
 import sqlite3
+import geojson
 
 
 class PropertyList(object):
@@ -131,7 +132,7 @@ class PropertyTransfer(object):
         try:
             cur.execute(sql, property_values)
             latest_sql = """INSERT INTO latest(transaction_id) VALUES(?)"""
-            cur.execute(latest_sql, self.transaction_id)
+            cur.execute(latest_sql, (self.transaction_id,))
             conn.commit()
             conn.close()
         except sqlite3.IntegrityError:
@@ -145,32 +146,60 @@ class PropertyTransfer(object):
             full = ', '.join([base, self.StructureType])
             return full
 
-    def collect_output(self):
-        output = []
-        conn = sqlite3.connect("transfers.db")
-        cur = conn.cursor()
-        cur.execute("SELECT * FROM latest")
-        tid = cur.fetchall()
-        for transaction in tid:
-            for row in cur.execute("SELECT * FROM transfers WHERE transaction_id=?", transaction):
-                output.append(row)
-        # return output
-        build_print(output)
-        build_web(output)
 
-    def build_print(self, properties):
-        city_groups = {}
-        outfile = open('residential.txt', 'w')
-        for p in properties:
-            city = p[3]
-            if city == "":
-                city = 'Unincorporated'
-            if city in city_groups.keys():
-                city_groups[city].append(p)
-            else:
-                city_groups[city] = []
-                city_groups[city].append(p)
+def collect_output():
+    output = []
+    conn = sqlite3.connect("transfers.db")
+    cur = conn.cursor()
+    cur.execute("SELECT transaction_id FROM transfers")
+    tid = cur.fetchall()
+    for transaction in tid:
+        for row in cur.execute("SELECT * FROM transfers WHERE transaction_id=?", transaction):
+            output.append(row)
+    return output
+    # build_print(output)
+    # build_web(output)
 
+
+def build_print(properties):
+    city_groups = {}
+    outfile = open('residential.txt', 'w')
+    for p in properties:
+        city = p[3]
+        if city == "":
+            city = 'Unincorporated'
+        if city in city_groups.keys():
+            city_groups[city].append(p)
+        else:
+            city_groups[city] = []
+            city_groups[city].append(p)
+    for town in city_groups:
+        outfile.write(town)
+        outfile.write('\n')
+        city_groups[town].sort(key=lambda x: x[8])
+        for q in city_groups[town]:
+            print(q)
+            outfile.write(q.__str__())
+            outfile.write('\n')
+    outfile.write('\n')
+    outfile.close()
+
+
+def build_web(properties):
+    no_map = []
+    features = []
+    outfile = open('transfers.geojson', 'w')
+    for p in properties:
+        if p[10] == 0:
+            no_map.append(p)
+        else:
+            point = geojson.Point((p[10], p[11]))
+            f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer':p[5], 'Seller':p[6], 'Price':p[7], 'Date':p[8]})
+            features.append(f)
+    latest_transfers = geojson.FeatureCollection(features)
+    dumps = geojson.dumps(latest_transfers)
+    outfile.write(dumps)
+    outfile.close()
 
 
 class OldTransfers(object):
@@ -222,6 +251,7 @@ def run_residential(start, end):
     for home in res_transfers.list:
         p = PropertyTransfer(**home)
         p.load_data()
+    collect_output()
     #    if p.City in city_groups.keys():
     #        city_groups[p.City].append(p)
     #    else:
@@ -268,5 +298,7 @@ if __name__ == "__main__":
     # parser.add_argument("old")
     # args = parser.parse_args()
     # run_residential(, args.end)
-    run_residential('07/01/2019', '07/05/2019')
+    # run_residential('07/15/2019', '07/16/2019')
     # run_commercial('07/01/2019', '07/15/2019', None)
+    z = collect_output()
+    build_web(z)
