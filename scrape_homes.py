@@ -44,7 +44,7 @@ class PropertyTransfer(object):
         self.ExciseDate = None
         self.ParcelNumber = ''
         self.ExciseID = None
-        self.StructureType = None
+        self.StructureType = "residential"
         for k in kwargs:
             setattr(self, k, kwargs[k])
         self.SalePrice = int(self.SalePrice)
@@ -52,14 +52,18 @@ class PropertyTransfer(object):
         self.Address = p_data["Address"]
         self.Buyer = p_data["Owner"]
         self.City = p_data["City"]
-        self.ZipCode = p_data['ZipCode']
+        try:
+            self.ZipCode = int(p_data['ZipCode'])
+        except TypeError:
+            self.ZipCode = 0
         self.Seller = self.excise_lookup()
         self.ExciseDate = self.format_excise_date()
         self.ExciseDateString = self.ExciseDate.strftime("%m/%d/%Y")
         self.transaction_id = int(str(self.ExciseDate.toordinal()) + self.ParcelNumber[:6] + self.ParcelNumber[7:])
+        self.parcel_int = int(self.ParcelNumber[:6] + self.ParcelNumber[7:])
         geographic_coordinates = self.get_coordinates()
-        self.latitude = geographic_coordinates['latitude']
-        self.longitude = geographic_coordinates['longitude']
+        self.latitude = float(geographic_coordinates['latitude'])
+        self.longitude = float(geographic_coordinates['longitude'])
 
 
     @property
@@ -106,32 +110,49 @@ class PropertyTransfer(object):
     def load_data(self):
         conn = sqlite3.connect("transfers.db")
         cur = conn.cursor()
-        sql = '''INSERT INTO transfers(
+        sql = """INSERT INTO transfers(
                         transaction_id, 
                         parcel_number, 
-                        address, city, 
+                        address, 
+                        city, 
                         zip_code, 
                         seller, 
                         buyer, 
                         sale_price, 
-                        excise_date, 
-                        structure_type
+                        excise_date,
+                        structure_type,
+                        longitude,
+                        latitude
                         ) 
-                    VALUES(?,?,?,?,?,?,?,?,?,?)'''
-        property_values = (self.transaction_id, self.ParcelNumber, self.Address, self.City, self.ZipCode)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"""
+        property_values = (self.transaction_id, self.parcel_int, self.Address, self.City, self.ZipCode)
         property_values += (self.Seller, self.Buyer, self.SalePrice, self.ExciseDateString, self.StructureType)
+        property_values += (self.longitude, self.latitude)
         try:
             cur.execute(sql, property_values)
+            latest_sql = """INSERT INTO latest(transaction_id) VALUES(?)"""
+            cur.execute(latest_sql, self.transaction_id)
+            conn.commit()
+            conn.close()
         except sqlite3.IntegrityError:
             print(self.Address + " already transferred on " + self.ExciseDateString)
 
     def __str__(self):
         base = "{0}; ${1:,}; {2}; {3}; {4}".format(self.Address, self.SalePrice, self.Buyer, self.Seller, self.ExciseDateString)
-        if self.StructureType:
+        if self.StructureType == 'residence':
+            return base
+        else:
             full = ', '.join([base, self.StructureType])
             return full
-        else:
-            return base
+
+    """def build_output(self):
+        conn = sqlite3.connect("transfers.db")
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM latest")
+        tid = cur.fetchall()
+        for transaction in tid:
+            for row in cur.execute("SELECT * FROM transfers WHERE transaction_id=?", transaction):
+"""
 
 
 class OldTransfers(object):
@@ -202,7 +223,7 @@ def run_residential(start, end):
     # outfile.close()
 
 
-def run_commercial(start, end, old):
+def run_commercial(start, end):
     outfile = open('commercial.txt', 'w')
     com_transfers = PropertyList(start=start, end=end, use=None)
     com_transfers.populate_list()
