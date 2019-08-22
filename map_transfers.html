@@ -28,6 +28,21 @@ let map = new mapboxgl.Map({
     zoom: 10 // starting zoom
 });
 
+map.on('load', function(){
+   map.addLayer({
+      'id': 'properties',
+      'type': 'circle',
+      'source': {
+         'type': 'geojson',
+         'data': 'transfers.geojson'
+      },
+      'layout': {},
+      'paint': {
+         'circle-color': '#ff0000',
+         'circle-radius': 10
+      }
+   })
+});
 
 </script>
 
