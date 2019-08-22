@@ -45,9 +45,10 @@ class PropertyTransfer(object):
         self.ExciseDate = None
         self.ParcelNumber = ''
         self.ExciseID = None
-        self.StructureType = "residential"
         for k in kwargs:
             setattr(self, k, kwargs[k])
+        if self.StructureType is None:
+            self.StructureType = "residence"
         self.SalePrice = int(self.SalePrice)
         p_data = self.parcel_lookup
         self.Address = p_data["Address"]
@@ -139,7 +140,8 @@ class PropertyTransfer(object):
             print(self.Address + " already transferred on " + self.ExciseDateString)
 
     def __str__(self):
-        base = "{0}; ${1:,}; {2}; {3}; {4}".format(self.Address, self.SalePrice, self.Buyer, self.Seller, self.ExciseDateString)
+        base = "{0}; ${1:,}; {2}; {3}; {4}".format(self.Address, self.SalePrice,
+                                                   self.Buyer, self.Seller, self.ExciseDateString)
         if self.StructureType == 'residence':
             return base
         else:
@@ -192,12 +194,15 @@ def commercial_print(properties):
         outfile.write('\n')
     outfile.close()
 
+
 def web_commercial(properties):
     outfile = open('commercial.geojson', 'w')
     features = []
     for p in properties:
         point = geojson.Point((p[10], p[11]))
-        f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer': p[5], 'Seller': p[6], 'Price': p[7], 'Date': p[8], 'Building Type': p[9]})
+        f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer': p[5],
+                                                        'Seller': p[6], 'Price': p[7], 'Date': p[8],
+                                                        'Building Type': p[9]})
         features.append(f)
     commercial_transfers = geojson.FeatureCollection(features)
     dumps = geojson.dumps(commercial_transfers)
@@ -214,7 +219,9 @@ def build_web(properties):
             no_map.append(p)
         else:
             point = geojson.Point((p[10], p[11]))
-            f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer': p[5], 'Seller': p[6], 'Price': p[7], 'Date': p[8]})
+            f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3],
+                                                            'Buyer': p[5], 'Seller': p[6],
+                                                            'Price': p[7], 'Date': p[8]})
             features.append(f)
     latest_transfers = geojson.FeatureCollection(features)
     dumps = geojson.dumps(latest_transfers)
@@ -264,14 +271,14 @@ class OldTransfers(object):
 
 
 def run_residential(start, end):
-    # city_groups = {}
-    # outfile = open('residential.txt', 'w')
     res_transfers = PropertyList(start=start, end=end, use="11")
     res_transfers.populate_list()
     for home in res_transfers.list:
         p = PropertyTransfer(**home)
         p.load_data()
-    collect_output()
+    r = collect_output()
+    build_print(r)
+    build_web(r)
 
 
 def run_commercial(start, end):
@@ -281,8 +288,8 @@ def run_commercial(start, end):
         p = PropertyTransfer(**parcel)
         p.load_data()
     z = collect_output()
-    build_print(z)
-    build_web(z)
+    commercial_print(z)
+    web_commercial(z)
 
 
 if __name__ == "__main__":
@@ -292,7 +299,5 @@ if __name__ == "__main__":
     # parser.add_argument("old")
     # args = parser.parse_args()
     # run_residential(, args.end)
-    # run_residential('07/15/2019', '07/16/2019')
-    # run_commercial('07/01/2019', '07/15/2019', None)
-    z = collect_output()
-    build_web(z)
+    run_residential('07/15/2019', '07/16/2019')
+    run_commercial('07/01/2019', '07/15/2019')
