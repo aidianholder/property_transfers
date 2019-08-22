@@ -157,8 +157,6 @@ def collect_output():
         for row in cur.execute("SELECT * FROM transfers WHERE transaction_id=?", transaction):
             output.append(row)
     return output
-    # build_print(output)
-    # build_web(output)
 
 
 def build_print(properties):
@@ -179,9 +177,31 @@ def build_print(properties):
         city_groups[town].sort(key=lambda x: x[8])
         for q in city_groups[town]:
             print(q)
-            outfile.write(q.__str__())
+            p_string = "{0}; ${1:,}; {2}; {3}; {4}".format(q[2], q[7], q[5], q[6], q[8])
+            outfile.write(p_string)
             outfile.write('\n')
     outfile.write('\n')
+    outfile.close()
+
+
+def commercial_print(properties):
+    outfile = open('commercial.txt', 'w')
+    for p in properties:
+        p_string = "{0}; ${1:,}; {2}; {3}; {4}".format(p[2], p[7], p[5], p[6], p[8], p[9])
+        outfile.write(p_string)
+        outfile.write('\n')
+    outfile.close()
+
+def web_commercial(properties):
+    outfile = open('commercial.geojson', 'w')
+    features = []
+    for p in properties:
+        point = geojson.Point((p[10], p[11]))
+        f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer': p[5], 'Seller': p[6], 'Price': p[7], 'Date': p[8], 'Building Type': p[9]})
+        features.append(f)
+    commercial_transfers = geojson.FeatureCollection(features)
+    dumps = geojson.dumps(commercial_transfers)
+    outfile.write(dumps)
     outfile.close()
 
 
@@ -194,7 +214,7 @@ def build_web(properties):
             no_map.append(p)
         else:
             point = geojson.Point((p[10], p[11]))
-            f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer':p[5], 'Seller':p[6], 'Price':p[7], 'Date':p[8]})
+            f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3], 'Buyer': p[5], 'Seller': p[6], 'Price': p[7], 'Date': p[8]})
             features.append(f)
     latest_transfers = geojson.FeatureCollection(features)
     dumps = geojson.dumps(latest_transfers)
@@ -252,43 +272,17 @@ def run_residential(start, end):
         p = PropertyTransfer(**home)
         p.load_data()
     collect_output()
-    #    if p.City in city_groups.keys():
-    #        city_groups[p.City].append(p)
-    #    else:
-    #        city_groups[p.City] = []
-    #        city_groups[p.City].append(p)
-    # pr.purge_oldest()
-    # pr.write_storage("residential")
-    # for town in city_groups.keys():
-    #    outfile.write(town)
-    #    outfile.write('\n')
-    #    city_groups[town].sort(key=lambda x: x.ExciseDate)
-    #    for q in city_groups[town]:
-    #        print(q)
-    #        outfile.write(q.__str__())
-    #        outfile.write('\n')
-    #    outfile.write('\n')
-    # outfile.close()
 
 
 def run_commercial(start, end):
-    outfile = open('commercial.txt', 'w')
     com_transfers = PropertyList(start=start, end=end, use=None)
     com_transfers.populate_list()
-    com_properties_transferred = []
-    # pr = OldTransfers(old)
     for parcel in com_transfers.list:
         p = PropertyTransfer(**parcel)
-        # pr.record_transfer(p.ExciseDate.strftime("%Y%m%d"), p.ParcelNumber, p.Address)
-        com_properties_transferred.append(p)
-    # pr.purge_oldest()
-    # pr.write_storage("commercial")
-    com_properties_transferred.sort(key=lambda x: x.ExciseDate)
-    for v in com_properties_transferred:
-        print(v)
-        outfile.write(v.__str__())
-        outfile.write("\n")
-    outfile.close()
+        p.load_data()
+    z = collect_output()
+    build_print(z)
+    build_web(z)
 
 
 if __name__ == "__main__":
