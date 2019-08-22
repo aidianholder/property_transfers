@@ -39,9 +39,46 @@ map.on('load', function(){
       'layout': {},
       'paint': {
          'circle-color': '#ff0000',
-         'circle-radius': 10
+         'circle-radius': {
+            'base': 2,
+            'stops': [[9,2], [10,3], [11,5]]
+         }
       }
    })
+
+   let popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false
+      });
+
+      map.on('mouseenter', 'properties', function(e) {
+      // Change the cursor style as a UI indicator.
+         map.getCanvas().style.cursor = 'pointer';
+
+         let coordinates = e.features[0].geometry.coordinates.slice();
+         console.log(e.features[0])
+
+         while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+         coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+         }
+
+
+         let popupContent = "Address: " + e.features[0].properties['Address'] + " " + e.features[0].properties['City'] + "<br/>Buyer: " +
+                    e.features[0].properties['Buyer'] + "<br/>Seller: " + e.features[0].properties['Seller'] + "<br/>Price: $" + e.features[0].properties['Price']
+
+
+         // Populate the popup and set its coordinates
+         // based on the feature found.
+         popup.setLngLat(coordinates)
+            .setHTML(popupContent)
+            .addTo(map);
+      });
+
+      map.on('mouseleave', 'places', function() {
+      map.getCanvas().style.cursor = '';
+      popup.remove();
+      });
+
 });
 
 </script>
