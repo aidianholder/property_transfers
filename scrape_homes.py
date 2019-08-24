@@ -48,7 +48,7 @@ class PropertyTransfer(object):
         for k in kwargs:
             setattr(self, k, kwargs[k])
         if self.StructureType is None:
-            self.StructureType = "residence"
+            self.StructureType = "Residence"
         self.SalePrice = int(self.SalePrice)
         p_data = self.parcel_lookup
         self.Address = p_data["Address"]
@@ -153,10 +153,12 @@ def collect_output():
     output = []
     conn = sqlite3.connect("transfers.db")
     cur = conn.cursor()
-    cur.execute("SELECT transaction_id FROM transfers")
+    cur.execute("SELECT transaction_id FROM latest")
     tid = cur.fetchall()
     for transaction in tid:
         for row in cur.execute("SELECT * FROM transfers WHERE transaction_id=?", transaction):
+            print(tid)
+            print(row)
             output.append(row)
     return output
 
@@ -176,10 +178,11 @@ def build_print(properties):
     for town in city_groups:
         outfile.write(town)
         outfile.write('\n')
+        print(town)
         city_groups[town].sort(key=lambda x: x[8])
         for q in city_groups[town]:
-            print(q)
             p_string = "{0}; ${1:,}; {2}; {3}; {4}".format(q[2], q[7], q[5], q[6], q[8])
+            print(p_string)
             outfile.write(p_string)
             outfile.write('\n')
     outfile.write('\n')
@@ -189,13 +192,14 @@ def build_print(properties):
 def commercial_print(properties):
     outfile = open('commercial.txt', 'w')
     for p in properties:
-        p_string = "{0}; ${1:,}; {2}; {3}; {4}".format(p[2], p[7], p[5], p[6], p[8], p[9])
+        p_string = "{0}; ${1:,}; {2}; {3}; {4}; {5}".format(p[2], p[7], p[5], p[6], p[8], p[9])
+        print(p_string)
         outfile.write(p_string)
         outfile.write('\n')
     outfile.close()
 
 
-def web_commercial(properties):
+"""def web_commercial(properties):
     outfile = open('commercial.geojson', 'w')
     features = []
     for p in properties:
@@ -207,13 +211,13 @@ def web_commercial(properties):
     commercial_transfers = geojson.FeatureCollection(features)
     dumps = geojson.dumps(commercial_transfers)
     outfile.write(dumps)
-    outfile.close()
+    outfile.close()"""
 
 
-def build_web(properties):
+def build_web(properties, outfile_name):
     no_map = []
     features = []
-    outfile = open('transfers.geojson', 'w')
+    outfile = open(outfile_name, 'w')
     for p in properties:
         if p[10] == 0:
             no_map.append(p)
@@ -221,7 +225,8 @@ def build_web(properties):
             point = geojson.Point((p[10], p[11]))
             f = geojson.Feature(geometry=point, properties={'Address': p[2], 'City': p[3],
                                                             'Buyer': p[5], 'Seller': p[6],
-                                                            'Price': p[7], 'Date': p[8]})
+                                                            'Price': p[7], 'Date': p[8],
+                                                            'Building Type': p[9]})
             features.append(f)
     latest_transfers = geojson.FeatureCollection(features)
     dumps = geojson.dumps(latest_transfers)
@@ -271,26 +276,36 @@ class OldTransfers(object):
 
 
 def run_residential(start, end):
+    print('fetching residential transfers')
     res_transfers = PropertyList(start=start, end=end, use="11")
     res_transfers.populate_list()
     for home in res_transfers.list:
         p = PropertyTransfer(**home)
         p.load_data()
+    print('data loaded, building output')
     r = collect_output()
+    print('building residential print')
     build_print(r)
-    build_web(r)
+    print('building residential web')
+    build_web(r, 'transfers.geojson')
+    print('residential complete')
 
 
 def run_commercial(start, end):
+    print('fetching commercial')
     com_transfers = PropertyList(start=start, end=end, use=None)
     com_transfers.populate_list()
+    print('loading data')
     for parcel in com_transfers.list:
         p = PropertyTransfer(**parcel)
         p.load_data()
+    print('data loading, building output')
     z = collect_output()
+    print('building commercial print')
     commercial_print(z)
-    web_commercial(z)
-
+    print('building commercial web')
+    build_web(z, 'commercial.geojson')
+    print('commercial done')
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
@@ -299,5 +314,9 @@ if __name__ == "__main__":
     # parser.add_argument("old")
     # args = parser.parse_args()
     # run_residential(, args.end)
-    run_residential('07/15/2019', '07/16/2019')
-    run_commercial('07/01/2019', '07/15/2019')
+    # run_residential('07/01/2019', '07/22/2019')
+    # run_commercial('07/01/2019', '07/22/2019')
+    z = collect_output()
+    commercial_print(z)
+    build_web(z, 'commercial.geojson')
+
