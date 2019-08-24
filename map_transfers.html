@@ -9,7 +9,10 @@
 <style>
         body { margin:0; padding:0; }
         #map {width:100%; height: 640px; }
-
+         .mapboxgl-popup {
+            max-width: 320px;
+            font: 10px/16px 'Helvetica Neue', Arial, sans-serif;
+         }
 
 </style>
 </head>
@@ -21,11 +24,14 @@
 
 <script>
 
+let bounds = [[-121.444448, 45.895843],[-119.217641, 47.033431]]
+
 let map = new mapboxgl.Map({
-    container: 'map', // container id
+    container: 'map',
     style: 'https://aidianholder.com/mapserver/osm-liberty-buildings.json',
     center: [-120.4, 46.5], // starting position [lng, lat]
-    zoom: 10 // starting zoom
+    zoom: 10,
+    maxBounds: bounds
 });
 
 map.on('load', function(){
@@ -44,7 +50,25 @@ map.on('load', function(){
             'stops': [[9,2], [10,3], [11,5]]
          }
       }
-   })
+   });
+
+   map.addLayer({
+      'id': 'commercial',
+      'type': 'circle',
+      'source': {
+         'type': 'geojson',
+         'data': 'commercial.geojson'
+      },
+      'layout': {},
+      'paint': {
+         'circle-color': '#333333',
+         'circle-radius': {
+            'base': 2,
+            'stops': [[9,2], [10,3], [11,5]]
+         }
+      }
+   });
+
 
    let popup = new mapboxgl.Popup({
       closeButton: false,
@@ -56,14 +80,42 @@ map.on('load', function(){
          map.getCanvas().style.cursor = 'pointer';
 
          let coordinates = e.features[0].geometry.coordinates.slice();
-         console.log(e.features[0])
+         console.log(e.features[0]);
 
          while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
          coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
          }
 
 
-         let popupContent = `Address: ${e.features[0].properties['Address']} ${e.features[0].properties['City']}<br/>Buyer: ${e.features[0].properties['Buyer']}<br/>Seller: ${e.features[0].properties['Seller']}<br/>Price: $${e.features[0].properties['Price']}`
+         let popupContent = "<strong>Address: </strong>" + e.features[0].properties['Address'] + ' ' + e.features[0].properties['City'] + "<br/><strong>Grantor: </strong>" + e.features[0].properties['Buyer'] + "<br/><strong>Grantee: </strong>" + e.features[0].properties['Seller'] + "<br/><strong>Price: </strong>$" + e.features[0].properties['Price'] + "<br/><strong>Type: </strong>" + e.features[0].properties['Building Type']
+                 + "<br/><strong>Date: </strong>" + e.features[0].properties['Date'];
+
+         // Populate the popup and set its coordinates
+         // based on the feature found.
+         popup.setLngLat(coordinates)
+            .setHTML(popupContent)
+            .addTo(map);
+      });
+
+      map.on('mouseleave', 'properties', function() {
+         map.getCanvas().style.cursor = '';
+         popup.remove();
+      });
+
+      map.on('mouseenter', 'commercial', function(e) {
+      // Change the cursor style as a UI indicator.
+         map.getCanvas().style.cursor = 'pointer';
+
+         let coordinates = e.features[0].geometry.coordinates.slice();
+         console.log(e.features[0]);
+
+         while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+         coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+         }
+
+
+         let popupContent = "<strong>Address: </strong>" + e.features[0].properties['Address'] + ' ' + e.features[0].properties['City'] + "<br/><strong>Grantor: </strong>" + e.features[0].properties['Buyer'] + "<br/><strong>Grantee: </strong>" + e.features[0].properties['Seller'] + "<br/><strong>Price: </strong>$" + e.features[0].properties['Price'] + "<br/><strong>Type: </strong>" + e.features[0].properties['Building Type']
+                 + "<br/><strong>Date: </strong>" + e.features[0].properties['Date'];
 
 
          // Populate the popup and set its coordinates
@@ -73,9 +125,9 @@ map.on('load', function(){
             .addTo(map);
       });
 
-      map.on('mouseleave', 'places', function() {
-      map.getCanvas().style.cursor = '';
-      popup.remove();
+      map.on('mouseleave', 'commercial', function() {
+         map.getCanvas().style.cursor = '';
+         popup.remove();
       });
 
 });
