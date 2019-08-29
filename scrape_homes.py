@@ -74,10 +74,17 @@ class PropertyTransfer(object):
         parcel_num_string = self.ParcelNumber[:6] + self.ParcelNumber[7:]
         parcel_details_url = base_parcel_url + parcel_num_string
         parcel_data = requests.get(parcel_details_url, timeout=10).json()
-        property_address = parcel_data['SitusAddresses'][0]
-        address = property_address['AddressString']
-        city = property_address['City']
-        zip_c = property_address['ZipCode']
+        print(parcel_data)
+        try:
+            property_address = parcel_data['SitusAddresses'][0]
+            address = property_address['AddressString']
+            city = property_address['City']
+            zip_c = property_address['ZipCode']
+        except IndexError:
+            property_address = 'condo'
+            address = 'condo'
+            city = 'unkwn'
+            zip_c = 0000
         grantees = parcel_data['OwnerRecords']
         buyer = []
         for grantee in grantees:
@@ -314,9 +321,9 @@ if __name__ == "__main__":
     # parser.add_argument("old")
     # args = parser.parse_args()
     # run_residential(, args.end)
-    # run_residential('07/01/2019', '07/22/2019')
-    # run_commercial('07/01/2019', '07/22/2019')
-    z = collect_output()
-    commercial_print(z)
-    build_web(z, 'commercial.geojson')
+    # run_residential('07/23/2019', '07/31/2019')
+    run_commercial('07/01/2019', '07/31/2019')
+    # z = collect_output()
+    # commercial_print(z)
+    # build_web(z, 'commercial.geojson')
 
