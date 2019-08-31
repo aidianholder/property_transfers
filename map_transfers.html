@@ -35,6 +35,11 @@ let map = new mapboxgl.Map({
 });
 
 map.on('load', function(){
+   /*map.loadImage('https://www.yakimaherald.com/app/property_map/home.png', function(error, home){
+      if (error) throw error;
+      map.addImage('home', home);
+   })*/
+
    map.addLayer({
       'id': 'properties',
       'type': 'circle',
@@ -48,7 +53,8 @@ map.on('load', function(){
          'circle-radius': {
             'base': 2,
             'stops': [[9,2], [10,3], [11,5]]
-         }
+         },
+         'circle-stroke-width': 1
       }
    });
 
@@ -61,11 +67,12 @@ map.on('load', function(){
       },
       'layout': {},
       'paint': {
-         'circle-color': '#333333',
+         'circle-color': '#339933',
          'circle-radius': {
             'base': 2,
             'stops': [[9,2], [10,3], [11,5]]
-         }
+         },
+         'circle-stroke-width': 1
       }
    });
 
