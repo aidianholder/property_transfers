@@ -17,6 +17,7 @@ class PropertyList(object):
         self.use = use
 
     def populate_list(self):
+        # pain point -- magic numbers through this function #
         base_assessors_url = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/"
         type_url_fragment = {
             "residential": "GetBasicSales/U?salesType=use&saleDateFrom=",
@@ -67,7 +68,6 @@ class PropertyTransfer(object):
         self.latitude = float(geographic_coordinates['latitude'])
         self.longitude = float(geographic_coordinates['longitude'])
 
-
     @property
     def parcel_lookup(self):
         base_parcel_url = "https://yes.co.yakima.wa.us/AssessorAPI/ParcelDetails/GetByParcelNumber/"
@@ -80,20 +80,23 @@ class PropertyTransfer(object):
             address = property_address['AddressString']
             city = property_address['City']
             zip_c = property_address['ZipCode']
-        except IndexError:
+        except (IndexError, KeyError):
             property_address = 'condo'
             address = 'condo'
             city = 'unkwn'
             zip_c = 0000
-        grantees = parcel_data['OwnerRecords']
-        buyer = []
-        for grantee in grantees:
-            buyer.append(grantee['Name'])
-        if len(buyer) > 1:
-            buyer_names = ", ".join(buyer)
-        else:
-            buyer_names = buyer[0]
-        return dict(Address=address, City=city, ZipCode=zip_c, Owner=buyer_names)
+        try:
+            grantees = parcel_data['OwnerRecords']
+            buyer = []
+            for grantee in grantees:
+                buyer.append(grantee['Name'])
+            if len(buyer) > 1:
+                buyer_names = ", ".join(buyer)
+            else:
+                buyer_names = buyer[0]
+            return dict(Address=address, City=city, ZipCode=zip_c, Owner=buyer_names)
+        except KeyError:
+            return dict(Address='none', City='none', ZipCode=0000, Owner='none')
 
     def excise_lookup(self):
         excise_url_base = "https://yes.co.yakima.wa.us/AssessorAPI/SaleDetails/GetExciseRecord/"
@@ -314,16 +317,16 @@ def run_commercial(start, end):
     build_web(z, 'commercial.geojson')
     print('commercial done')
 
+
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser()
     # parser.add_argument("start")
     # parser.add_argument("end")
     # parser.add_argument("old")
     # args = parser.parse_args()
-    # run_residential(, args.end)
-    # run_residential('07/23/2019', '07/31/2019')
-    run_commercial('07/01/2019', '07/31/2019')
+    #run_residential(, args.end)
+    #run_residential('01/07/2020', '02/07/2020')
+    run_commercial('01/07/2020', '02/07/2020')
     # z = collect_output()
     # commercial_print(z)
     # build_web(z, 'commercial.geojson')
-

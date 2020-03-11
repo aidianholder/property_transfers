@@ -1,0 +1,1 @@
+Scrapes property transfer details from Yakima County Assessor's office web portal.
